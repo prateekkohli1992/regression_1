@@ -1,0 +1,246 @@
+---
+title: "Modeling in R"
+output: html_notebook
+---
+
+
+Load the libraries
+
+```{r}
+library(MASS)
+library(tidyverse)
+library(car)
+library(perturb)
+library(corpcor)
+library(caret)
+library(RANN)
+library(bnstruct)
+library(DMwR)
+library(psych)
+library(corrplot)
+library(broom)
+library(gridExtra)
+library(grid)
+library(arules)
+```
+
+
+Model 1 with all variables
+
+```{r}
+df <- read.csv('Data/data_train.csv')
+x_axis1=df[c(1)]
+df<-df[ -c(1) ]
+row.names(df) <- unlist(x_axis1, use.names=FALSE)
+df$enginesize <-log(df$enginesize)
+mod1 <- lm(price~.+compressionratio*fueltype,data=df)
+summary(mod1)
+```
+Lets check residual plots
+
+```{r}
+mod1_table <- augment(mod1)
+head(mod1_table)
+```
+
+
+
+
+```{r}
+#ggplot(mod1_table, aes(wheelbase,.std.resid))+geom_point()+geom_smooth()
+#ggplot(mod1_table, aes(wheelbase2,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(carlength,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(carwidth,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(carheight,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(curbweight,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(enginesize,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(boreratio,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(stroke,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table[mod1_table$fueltype=='gas',], aes(compressionratio,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table[mod1_table$fueltype=='diesel',], aes(compressionratio,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(compressionratio,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(horsepower,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(peakrpm,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(citympg,.std.resid))+geom_point()+geom_smooth()
+ggplot(mod1_table, aes(highwaympg,.std.resid))+geom_point()+geom_smooth()
+```
+
+```{r}
+ggplot(mod1_table) +
+  aes(x = symboling, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(symboling), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+ggplot(mod1_table) +
+  aes(x = fueltype, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(fueltype), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+
+ggplot(mod1_table) +
+  aes(x = aspiration, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(aspiration), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+ggplot(mod1_table) +
+  aes(x = doornumber, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(doornumber), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+ggplot(mod1_table) +
+  aes(x = carbody, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(carbody), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+
+ggplot(mod1_table) +
+  aes(x = drivewheel, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(drivewheel), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+
+
+ggplot(mod1_table) +
+  aes(x = enginelocation, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(enginelocation), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+
+ggplot(mod1_table) +
+  aes(x = enginetype, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(enginetype), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+
+ggplot(mod1_table) +
+  aes(x = cylindernumber, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(cylindernumber), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+ggplot(mod1_table) +
+  aes(x = fuelsystem, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(fuelsystem), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+
+ggplot(mod1_table) +
+  aes(x = brandName, y = .std.resid) +
+  geom_point() -> p1
+
+ggplot(mod1_table) +
+  aes(x = factor(brandName), y = .std.resid) +
+  geom_boxplot() +
+  geom_smooth(aes(group = 1), se = FALSE) -> p2
+
+grid.arrange(p1, p2, ncol = 2)
+```
+```{r}
+ggplot(mod1_table, aes(cut(wheelbase,breaks=20),.std.resid,group=cut(wheelbase,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(carlength,breaks=20),.std.resid,group=cut(carlength,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(carwidth,breaks=20),.std.resid,group=cut(carwidth,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(carheight,breaks=20),.std.resid,group=cut(carheight,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(curbweight,breaks=20),.std.resid,group=cut(curbweight,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(enginesize,breaks=20),.std.resid,group=cut(enginesize,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(boreratio,breaks=20),.std.resid,group=cut(boreratio,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(stroke,breaks=20),.std.resid,group=cut(stroke,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(compressionratio,breaks=20),.std.resid,group=cut(compressionratio,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(horsepower,breaks=20),.std.resid,group=cut(horsepower,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(peakrpm,breaks=20),.std.resid,group=cut(peakrpm,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(citympg,breaks=20),.std.resid,group=cut(citympg,breaks=20)))+geom_boxplot()
+ggplot(mod1_table, aes(cut(highwaympg,breaks=20),.std.resid,group=cut(highwaympg,breaks=20)))+geom_point()
+```
+
+```{r}
+
+ggplot(mod1_table, aes(wheelbase,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(carlength,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(carwidth,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(carheight,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(curbweight,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(enginesize,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(boreratio,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(stroke,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(compressionratio,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(horsepower,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(peakrpm,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(citympg,.std.resid))+geom_quantile()
+ggplot(mod1_table, aes(highwaympg,.std.resid))+geom_quantile()
+```
+
+```{r, fig.width = 20, fig.height = 5}
+mod1_table['index']<-x_axis1
+library(ggrepel)
+ggplot(mod1_table) +
+  geom_text_repel(aes(x = index, 
+                      y = .cooksd, 
+                      label = index))
+```
+```{r}
+summary1<-summary(mod1)
+p<-summary1$fstatistic['numdf']
+mod1_table['potential_function']<-mod1_table['.hat']/(1-mod1_table['.hat'])
+mod1_table[mod1_table['index']==65,]
+```
+```{r}
+mod1_table[mod1_table['.rownames']=='29',]
+```
+
