@@ -20,8 +20,10 @@ library(psych)
 library(corrplot)
 library(broom)
 library(gridExtra)
-library(grid)
+#library(grid)
 library(arules)
+library(ggrepel)
+library(olsrr)
 ```
 
 
@@ -228,7 +230,7 @@ ggplot(mod1_table, aes(highwaympg,.std.resid))+geom_quantile()
 
 ```{r, fig.width = 20, fig.height = 5}
 mod1_table['index']<-x_axis1
-library(ggrepel)
+
 ggplot(mod1_table) +
   geom_text_repel(aes(x = index, 
                       y = .cooksd, 
@@ -243,4 +245,28 @@ mod1_table[mod1_table['index']==65,]
 ```{r}
 mod1_table[mod1_table['.rownames']=='29',]
 ```
+
+
+```{r}
+pot_res <- ols_plot_resid_pot(mod1)
+ggplot(pot_res$data) +
+  geom_text_repel(aes(x = res, 
+                      y = pot, 
+                      label = row.names(pot_res$data)))
+```
+ 
+```{r}
+mod1_table[mod1_table$.hat==1,]
+```
+
+
+
+
+
+
+
+
+
+
+
 
