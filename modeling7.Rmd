@@ -398,4 +398,3 @@ print(mean(df$price))
 print(sqrt(mean((df_test$price - exp(predict(mod1, df_test))) ^ 2)))
 print(mean(df_test$price))
 ```
-
