@@ -8,6 +8,7 @@ Load the libraries
 
 ```{r}
 library(MASS)
+library(dplyr)
 library(tidyverse)
 library(car)
 library(perturb)
@@ -24,27 +25,117 @@ library(gridExtra)
 library(arules)
 library(ggrepel)
 library(olsrr)
+df <- read.csv('Data/data_train2.csv')
 ```
 
 
 Model 1 with all variables
 
 ```{r}
+
 df <- read.csv('Data/data_train_2.csv')
+df_test <- read.csv('Data/data_test_2.csv')
 x_axis1=df[c(1)]
+x_axis1_test=df_test[c(1)]
 df<-df[ -c(1) ]
-row.names(df) <- unlist(x_axis1, use.names=FALSE)
+df_test<-df_test[ -c(1) ]
 df$enginesize <-log(df$enginesize)
-mod1 <- lm(price~.+compressionratio*fueltype+cylindernumber*horsepower+carbody*enginesize-curbweight-fuelsystem-enginetype-cylindernumber-enginesize,data=df)
+df$horsepower <-log(df$horsepower)
+
+df$drivewheel <-  factor(df$drivewheel,levels = c('fwd','rwd','4wd'))
+
+df_test$enginesize <-log(df_test$enginesize)
+df_test$horsepower <-log(df_test$horsepower)
+
+df_test$drivewheel <-  factor(df_test$drivewheel,levels = c('fwd','rwd','4wd'))
+#df$symboling <-  factor(df$symboling,levels = c('symbolinglevel-1_-2','symboling0','symboling1','symboling2','symboling3'))
+
+#df$citympg<-df$curbweight/df$citympg
+#df$extralength<-df$carlength-df$wheelbase
+#df$carlength<-df$carlength*df$carwidth
+avg4 <- function(x) {  
+  return((1/as.numeric(x['citympg']))+(1/as.numeric(x['highwaympg'])))
+  
+  
+  
+  
+  
+}
+
+df$citympg<-apply(df,1,avg4)
+df_test$citympg<-apply(df_test,1,avg4)
+vars <- c( "wheelbase","carlength","carwidth","carheight","curbweight","enginesize","boreratio","stroke","peakrpm","citympg","highwaympg")
+#vars <- c('compressionratio','enginesize','peakrpm')
+df <- df %>% 
+  mutate_at(vars, scale, scale = FALSE)
+row.names(df) <- unlist(x_axis1, use.names=FALSE)
+
+df_test <- df_test %>% 
+  mutate_at(vars, scale, scale = FALSE)
+row.names(df_test) <- unlist(x_axis1_test, use.names=FALSE)
+df <- df[!row.names(df)==49,] 
+avg2 <- function(x) {  
+  
+  if(x['fueltype']=='gas'){
+    return(as.numeric(x['compressionratio'])-8.85)
+  }
+  else{
+    return(as.numeric(x['compressionratio'])-22.06)
+  }
+  
+  
+  
+  
+  }
+df$compressionratio<-apply(df,1,avg2)
+df_test$compressionratio<-apply(df_test,1,avg2)
+avg3 <- function(x) {  
+  
+  if(x['cylindernumber']=='two_three_four'){
+    return(as.numeric(x['horsepower'])-90.75)
+  }
+  if(x['cylindernumber']=='five_six'){
+    return(as.numeric(x['horsepower'])-149.514286)
+  }
+  else{
+    return(as.numeric(x['horsepower'])-204.666667)
+  }
+  
+  
+  
+  
+}
+
+df$horsepower<-apply(df,1,avg3)
+df_test$horsepower<-apply(df_test,1,avg3)
+#df$horsepower<-df$horsepower/df$curbweight
+
+
+mod1 <- lm(log(price)~.+compressionratio*fueltype+brandName-fuelsystem+horsepower-compressionratio-enginetype-cylindernumber-fueltype-highwaympg-curbweight,data=df)
 summary(mod1)
 ```
 Lets check residual plots
 
+
 ```{r}
-mod1_table <- augment(mod1)
+step.model <- stepAIC(mod1, direction = "both",trace = FALSE)
+mod1<-step.model
+summary(step.model)
+```
+
+
+
+
+
+```{r}
+mod1_table <- augment(step.model,df)
 head(mod1_table)
 
-row.names(mod1_table) <- unlist(x_axis1, use.names=FALSE)
+row.names(mod1_table) <- unlist(x_axis1[x_axis1!=49], use.names=FALSE)
+```
+```{r}
+
+plot(mod1)
 ```
 
 
@@ -194,9 +285,8 @@ ggplot(mod1_table) +
   aes(x = factor(brandName), y = .std.resid) +
   geom_boxplot() +
   geom_smooth(aes(group = 1), se = FALSE) -> p2
-grid.arrange(p1, p2, ncol = 2)
-#grid.arrange(p1+geom_text(aes(label = .rownames,alpha=0.01,hjust=1)), p2+geom_text(aes(label = row.names(mod1_table),alpha=0.01,hjust=1)), ncol = 2)
-#grid.arrange(p1+geom_text(aes(label = .rownames,alpha=0.01,hjust=1)), p2+geom_text(aes(label = row.names(mod1_table),alpha=0.01,hjust=1)), ncol = 2)
+
+grid.arrange(p1+geom_text(aes(label = .rownames,alpha=0.01,hjust=1)), p2+geom_text(aes(label = row.names(mod1_table),alpha=0.01,hjust=1)), ncol = 2)
 ```
 ```{r}
 ggplot(mod1_table, aes(cut(wheelbase,breaks=20),.std.resid,group=cut(wheelbase,breaks=20)))+geom_boxplot()
@@ -216,19 +306,19 @@ ggplot(mod1_table, aes(cut(highwaympg,breaks=20),.std.resid,group=cut(highwaympg
 
 ```{r}
 
-ggplot(mod1_table, aes(wheelbase,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(carlength,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(carwidth,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(carheight,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(curbweight,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(enginesize,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(boreratio,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(stroke,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(compressionratio,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(horsepower,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(peakrpm,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(wheelbase,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(carlength,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(carwidth,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(carheight,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(curbweight,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(enginesize,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(boreratio,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(stroke,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(compressionratio,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(horsepower,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(peakrpm,.std.resid))+geom_quantile()
 ggplot(mod1_table, aes(citympg,.std.resid))+geom_quantile()
-ggplot(mod1_table, aes(highwaympg,.std.resid))+geom_quantile()
+#ggplot(mod1_table, aes(highwaympg,.std.resid))+geom_quantile()
 ```
 
 ```{r, fig.width = 20, fig.height = 5}
@@ -241,8 +331,20 @@ ggplot(mod1_table) +
   geom_text_repel(aes(x = index, 
                       y = .cooksd, 
                       label = index))
+ggplot(mod1_table,aes(y= .cooksd))+geom_boxplot()
 ```
 
+
+
+```{r}
+summary1<-summary(mod1)
+p<-summary1$fstatistic['numdf']
+mod1_table['potential_function']<-mod1_table['.hat']/(1-mod1_table['.hat'])
+mod1_table[mod1_table['index']==65,]
+```
+```{r}
+mod1_table[mod1_table['.hat']==1,]
+```
 
 
 ```{r}
@@ -265,8 +367,9 @@ ols_plot_dffits(mod1)
 
 
 ```{r}
-cld=colldiag(model.matrix(mod1))
-print(cld)
+cld=colldiag(model.matrix(step.model),add.intercept = FALSE)
+View(round(cld$pi,2))
+print(cld$condindx)
 ```
 
 
@@ -278,8 +381,20 @@ df %>%
   mutate_at(vars, scale, scale = FALSE)
 ```
 
+```{r}
+vif(step.model)
+```
 
 
 
 
+```{r}
+print(sqrt(mean((df$price - exp(predict(mod1, df))) ^ 2)))
+print(mean(df$price))
+```
 
+
+```{r}
+print(sqrt(mean((df_test$price - exp(predict(mod1, df_test))) ^ 2)))
+print(mean(df_test$price))
+```
